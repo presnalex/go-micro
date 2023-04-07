@@ -12,6 +12,7 @@ require (
 	github.com/presnalex/codec-bytes v0.0.1
 	github.com/prometheus/client_golang v1.1.0
 	github.com/segmentio/encoding v0.3.6
+	github.com/twmb/franz-go v1.11.5
 	github.com/unistack-org/micro/v3 v3.0.0-gamma.0.20201012090909-6e43ae719076
 	go.uber.org/zap v1.19.1
 	go.unistack.org/micro-broker-kgo/v3 v3.8.4
