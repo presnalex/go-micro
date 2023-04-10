@@ -1,5 +1,20 @@
 package service
 
+import (
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/presnalex/go-micro/v3/codec/rawjson"
+	logwrapper "github.com/presnalex/go-micro/v3/wrapper/logwrapper"
+	idwrapper "github.com/presnalex/go-micro/v3/wrapper/requestid"
+	promwrapper "github.com/presnalex/micro-wrapper-metrics-prometheus"
+	kbroker "go.unistack.org/micro-broker-kgo/v3"
+	cp "go.unistack.org/micro-codec-proto/v3"
+	"go.unistack.org/micro/v3/broker"
+	"go.unistack.org/micro/v3/client"
+	"go.unistack.org/micro/v3/server"
+)
+
 type MetricConfig struct {
 	Addr string `json:"addr" env:"METRIC_ADDRESS"`
 }
@@ -55,4 +70,126 @@ type ServerConfig struct {
 type CoreConfig struct {
 	GetConfig bool `json:"-"`
 	Profile   bool `json:"profile"`
+}
+
+type ClientConfig struct {
+	ClientRetries        int `json:"client_retries"`
+	ClientRequestTimeout int `json:"client_request_timeout"`
+	ClientPoolSize       int `json:"client_pool_size"`
+	ClientDialTimeout    int `json:"client_dial_timeout"`
+	ClientPoolTTL        int `json:"client_pool_ttl"`
+	TransportTimeout     int `json:"transport_timeout"`
+}
+
+func ClientOptions(ccfg *ClientConfig) ([]client.Option, error) {
+	clientRetries := ccfg.ClientRetries
+	clientPoolSize := ccfg.ClientPoolSize
+
+	clientPoolTTL := time.Duration(ccfg.ClientPoolTTL) * time.Second
+	clientDialTimeout := time.Duration(ccfg.ClientDialTimeout) * 5 * time.Second
+	clientRequestTimeout := time.Duration(ccfg.ClientRequestTimeout) * 5 * time.Second
+
+	if clientRetries == 0 {
+		clientRetries = defaultClientRetries
+	}
+	if clientPoolSize == 0 {
+		clientPoolSize = defaultClientPoolSize
+	}
+	if ccfg.ClientRequestTimeout == 0 {
+		clientRequestTimeout = defaultClientRequestTimeout
+	}
+	if ccfg.ClientRequestTimeout == 0 {
+		clientRequestTimeout = defaultClientRequestTimeout
+	}
+	if ccfg.ClientPoolTTL == 0 {
+		clientPoolTTL = defaultClientPoolTTL
+	}
+	if ccfg.ClientDialTimeout == 0 {
+		clientDialTimeout = defaultClientDialTimeout
+	}
+
+	opts := []client.Option{
+		client.Codec("application/grpc+proto", cp.NewCodec()),
+		client.Codec("application/json", rawjson.NewCodec()),
+		// grpc.AuthTLS(&tls.Config{InsecureSkipVerify: true}),
+		client.Broker(broker.DefaultBroker),
+		client.Retries(clientRetries),
+		client.RequestTimeout(clientRequestTimeout),
+		client.PoolSize(clientPoolSize),
+		client.PoolTTL(clientPoolTTL),
+		client.DialTimeout(clientDialTimeout),
+		client.Wrap(promwrapper.NewClientWrapper()),
+		client.Wrap(idwrapper.NewClientWrapper()),
+		client.Wrap(logwrapper.NewClientWrapper()),
+	}
+
+	return opts, nil
+}
+
+func ServerOptions(scfg *ServerConfig) ([]server.Option, error) {
+	if len(scfg.ID) == 0 {
+		uid, err := uuid.NewRandom()
+		if err != nil {
+			return nil, err
+		}
+		scfg.ID = uid.String()
+	}
+
+	opts := []server.Option{
+		// sgrpc.AuthTLS(&tls.Config{InsecureSkipVerify: true}),
+		server.Name(scfg.Name),
+		server.Version(scfg.Version),
+		server.Address(scfg.Addr),
+		server.ID(scfg.ID),
+		//		server.Wait(true),
+		server.RegisterTTL(defaultRegisterTTL),
+		server.RegisterInterval(defaultRegisterInterval),
+		server.Broker(broker.DefaultBroker),
+		server.Codec("application/grpc", cp.NewCodec()),
+		server.Codec("application/grpc+proto", cp.NewCodec()),
+		server.Codec("application/json", rawjson.NewCodec()),
+		server.WrapHandler(
+			promwrapper.NewHandlerWrapper(
+				promwrapper.ServiceName(scfg.Name),
+				promwrapper.ServiceVersion(scfg.Version),
+				promwrapper.ServiceID(scfg.ID),
+			),
+		),
+		server.WrapHandler(idwrapper.NewServerHandlerWrapper()),
+		server.WrapHandler(logwrapper.NewServerHandlerWrapper()),
+		server.WrapSubscriber(
+			promwrapper.NewSubscriberWrapper(
+				promwrapper.ServiceName(scfg.Name),
+				promwrapper.ServiceVersion(scfg.Version),
+				promwrapper.ServiceID(scfg.ID),
+			),
+		),
+		server.WrapSubscriber(idwrapper.NewServerSubscriberWrapper()),
+		server.WrapSubscriber(logwrapper.NewServerSubscriberWrapper()),
+	}
+
+	return opts, nil
+}
+
+func InitBroker(cfg *BrokerConfig) broker.Broker {
+	if cfg == nil {
+		return broker.DefaultBroker
+	}
+
+	switch cfg.Type {
+	case "kafka":
+
+		opts := []broker.Option{broker.Codec(rawjson.NewCodec()), broker.Addrs(cfg.Addr...)}
+		opts = append(opts, NewKafkaReaderConfig(cfg)...)
+		opts = append(opts, NewKafkaWriterConfig(cfg)...)
+
+		return kbroker.NewBroker(opts...)
+	// case "kubemq":
+	//	return kubemqbroker.NewBroker(
+	//		broker.Addrs(cfg.Addr...),
+	//		broker.Codec(rawjson.Marshaler{}),
+	//	)
+	default:
+		return broker.DefaultBroker
+	}
 }
