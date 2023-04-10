@@ -16,7 +16,7 @@ require (
 	github.com/twmb/franz-go v1.11.5
 	github.com/unistack-org/micro/v3 v3.0.0-gamma.0.20201012090909-6e43ae719076
 	go.uber.org/zap v1.19.1
-	go.unistack.org/micro-broker-kgo/v3 v3.8.4
+	go.unistack.org/micro-broker-kgo/v3 v3.8.3
 	go.unistack.org/micro-codec-proto/v3 v3.10.0
 	go.unistack.org/micro-logger-zap/v3 v3.8.0
 	go.unistack.org/micro/v3 v3.10.14
