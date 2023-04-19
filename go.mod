@@ -2,6 +2,8 @@ module github.com/presnalex/go-micro/v3
 
 go 1.16
 
+replace github.com/unistack-org/micro/v3 => go.unistack.org/micro/v3 v3.10.10
+
 require (
 	github.com/godror/godror v0.36.0
 	github.com/golang/protobuf v1.5.2
