@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-	"github.com/unistack-org/micro/v3/api"
+	"go.unistack.org/micro/v3/api"
 )
 
 type handler struct{}

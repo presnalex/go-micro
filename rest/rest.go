@@ -17,7 +17,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/unistack-org/micro/v3/api"
+	"go.unistack.org/micro/v3/api"
 
 	"github.com/presnalex/go-micro/v3/logger"
 )
